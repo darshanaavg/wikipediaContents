@@ -25,7 +25,7 @@ public class App {
 		System.out.println("Give the title to search in wikipedia\n");
 
 		String text = inputObj.nextLine();
-		String titleToSearch = text.toLowerCase().replaceAll(" ", "_");
+		String titleToSearch = text.trim().replaceAll(" ", "_");
 
 		HttpClient client = HttpClient.newHttpClient();
 		HttpRequest request = HttpRequest.newBuilder()
@@ -60,14 +60,13 @@ public class App {
 
 			fw.write("\r\nTitle: " + title + "\r\n");
 
-			title = title.replaceAll(" ", "_");
+			title = title.trim().replaceAll(" ", "_");
+			
+			String url = wikipediaURL + "&prop=revisions&titles=" + title + "&formatversion=2&rvprop=content&rvslots=*".trim();
 
 			request = HttpRequest.newBuilder()
-					.uri(URI.create(wikipediaURL + "&prop=revisions&titles=" + title
-							+ "&formatversion=2&rvprop=content&rvslots=*"))
-					.headers("Content-Type", "application/json;charset=UTF-8")
-					.GET()
-					.build();
+					.uri(URI.create(url))
+					.headers("Content-Type", "application/json;charset=UTF-8").GET().build();
 
 			response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -87,6 +86,10 @@ public class App {
 
 				Object next = pageItr.next();
 				JSONObject pagesObj = (JSONObject) next;
+
+				if(!pagesObj.containsKey("revisions")) {
+					break;
+				}
 
 				JSONArray revisions = (JSONArray) pagesObj.get("revisions");
 
