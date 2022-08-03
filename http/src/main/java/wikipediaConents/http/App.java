@@ -60,9 +60,9 @@ public class App {
 
 			fw.write("\r\nTitle: " + title + "\r\n");
 
-			title = title.trim().replaceAll(" ", "_");
+			long pageId = (long) searchObj.get("pageid");
 			
-			String url = wikipediaURL + "&prop=revisions&titles=" + title + "&formatversion=2&rvprop=content&rvslots=*".trim();
+			String url = wikipediaURL + "&prop=revisions&pageids=" + pageId + "&formatversion=2&rvprop=content&rvslots=*".trim();
 
 			request = HttpRequest.newBuilder()
 					.uri(URI.create(url))
