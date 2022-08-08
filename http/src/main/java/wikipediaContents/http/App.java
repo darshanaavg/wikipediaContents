@@ -1,15 +1,12 @@
-package wikipediaConents.http;
+package wikipediaContents.http;
 
 import java.util.Scanner;
 import java.io.IOException;
-import java.io.File;
-import java.io.FileWriter;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Iterator;
-
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -30,9 +27,7 @@ public class App {
 		HttpClient client = HttpClient.newHttpClient();
 		HttpRequest request = HttpRequest.newBuilder()
 				.uri(URI.create(wikipediaURL + "&list=search&utf8=1&srsearch=" + titleToSearch + "&srlimit=max"))
-				.headers("Content-Type", "application/json;charset=UTF-8")
-				.GET()
-				.build();
+				.headers("Content-Type", "application/json;charset=UTF-8").GET().build();
 
 		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 		String json = response.body().toString();
@@ -48,9 +43,8 @@ public class App {
 
 		Iterator<?> itr = search.iterator();
 
-		String file = "D:\\wikiContents_" + titleToSearch + "_.txt";
-		File newFile = new File(file);
-		FileWriter fw = new FileWriter(newFile);
+		ElasticSearch es = new ElasticSearch();
+		es.makeConnection();
 
 		while (itr.hasNext()) {
 
@@ -58,14 +52,12 @@ public class App {
 			JSONObject searchObj = (JSONObject) slide;
 			String title = (String) searchObj.get("title");
 
-			fw.write("\r\nTitle: " + title + "\r\n");
-
 			long pageId = (long) searchObj.get("pageid");
-			
-			String url = wikipediaURL + "&prop=revisions&pageids=" + pageId + "&formatversion=2&rvprop=content&rvslots=*".trim();
 
-			request = HttpRequest.newBuilder()
-					.uri(URI.create(url))
+			String url = wikipediaURL + "&prop=revisions&pageids=" + pageId
+					+ "&formatversion=2&rvprop=content&rvslots=*".trim();
+
+			request = HttpRequest.newBuilder().uri(URI.create(url))
 					.headers("Content-Type", "application/json;charset=UTF-8").GET().build();
 
 			response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -87,7 +79,7 @@ public class App {
 				Object next = pageItr.next();
 				JSONObject pagesObj = (JSONObject) next;
 
-				if(!pagesObj.containsKey("revisions")) {
+				if (!pagesObj.containsKey("revisions")) {
 					break;
 				}
 
@@ -108,19 +100,23 @@ public class App {
 
 					String content = (String) mainJson.get("content");
 
-					System.out.println("Copying the contents of " + title);
-					fw.write(content);
+					WikipediaContent w = new WikipediaContent();
+
+					w.setPageId(pageId);
+					w.setKey(text);
+					w.setTitle(title);
+					w.setContent(content);
+
+					es.insertWikiContent(w);
+
+					System.out.println("Copying the contents of " + pageId + " - " + title);
 				}
 
 			}
 
 		}
-		if (newFile.length() == 0) {
-			System.out.println("Contents missing in the wikipedia for the title " + text);
-		} else {
-			System.out.println("All the wikipedia searches are successfully copied to the file in the location " + file);
-			fw.close();
-		}
+		es.closeConnection();
+		System.out.println("All the contents are moved to Elastic Search");
 
 	}
 
