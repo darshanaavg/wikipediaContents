@@ -1,7 +1,7 @@
 package wikipediaContents.http;
 
 public class WikipediaContent {
-	
+
 	private long pageId;
 	private String key;
 	private String title;
