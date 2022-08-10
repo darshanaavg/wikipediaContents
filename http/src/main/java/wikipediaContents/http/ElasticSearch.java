@@ -2,9 +2,13 @@ package wikipediaContents.http;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -13,7 +17,7 @@ import org.elasticsearch.client.RestHighLevelClient;
 
 public class ElasticSearch {
 
-	private static RestHighLevelClient restHighLevelClient;
+	private static RestHighLevelClient client;
 
 	private static final String HOST = "localhost";
 	private static final int PORT_ONE = 9200;
@@ -21,17 +25,23 @@ public class ElasticSearch {
 
 	private static final String INDEX = "wikipedia";
 
-	public void makeConnection() {
+	public RestHighLevelClient makeConnection() {
 
-		if (restHighLevelClient == null) {
-			restHighLevelClient = new RestHighLevelClient(RestClient.builder(new HttpHost(HOST, PORT_ONE, SCHEME)));
+		if (client == null) {
+			client = new RestHighLevelClient(RestClient.builder(new HttpHost(HOST, PORT_ONE, SCHEME)));
 		}
 
+		System.out.println("Connection to ES established");
+
+		return client;
 	}
 
 	public void closeConnection() throws IOException {
-		restHighLevelClient.close();
-		restHighLevelClient = null;
+
+		client.close();
+		client = null;
+		System.out.println("Connection disabled");
+
 	}
 
 	public WikipediaContent insertWikiContent(WikipediaContent content) {
@@ -42,18 +52,54 @@ public class ElasticSearch {
 		dataMap.put("title", content.getTitle());
 		dataMap.put("content", content.getContent());
 
-		IndexRequest indexRequest = new IndexRequest(INDEX);
-		indexRequest.id(content.getPageId() + "");
-		indexRequest.source(dataMap);
+		IndexRequest indexRequest = new IndexRequest(INDEX).id(content.getPageId() + "").source(dataMap);
 
 		try {
-			IndexResponse response = restHighLevelClient.index(indexRequest, RequestOptions.DEFAULT);
-			System.out.println(response.getId());
+
+			IndexResponse response = client.index(indexRequest, RequestOptions.DEFAULT);
+
 		} catch (ElasticsearchException e) {
 			e.getDetailedMessage();
 		} catch (java.io.IOException ex) {
 			ex.getLocalizedMessage();
 		}
 		return content;
+	}
+
+	public void bulkInsert(List<WikipediaContent> contents) {
+
+		BulkRequest bulkRequest = new BulkRequest();
+
+		for (WikipediaContent content : contents) {
+
+			Map<String, Object> dataMap = new HashMap<String, Object>();
+
+			dataMap.put("key", content.getKey());
+			dataMap.put("title", content.getTitle());
+			dataMap.put("content", content.getContent());
+
+			IndexRequest indexRequest = new IndexRequest(INDEX).id(content.getPageId() + "").source(dataMap);
+
+			bulkRequest.add(indexRequest);
+		}
+		bulkRequest.timeout("1m");
+
+		try {
+			makeConnection();
+
+			BulkResponse response = client.bulk(bulkRequest, RequestOptions.DEFAULT);
+
+			for (BulkItemResponse bulkItemResponse : response) {
+
+				IndexResponse indexResponse = bulkItemResponse.getResponse();
+
+				System.out.println(indexResponse);
+			}
+
+			closeConnection();
+
+		} catch (IOException exception) {
+			exception.printStackTrace();
+		}
 	}
 }

@@ -6,13 +6,17 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
+
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 public class App {
+
 	public static final String wikipediaURL = "https://en.wikipedia.org/w/api.php?action=query&format=json";
 
 	public static void main(String[] args) throws IOException, InterruptedException, ParseException
@@ -24,9 +28,12 @@ public class App {
 		String text = inputObj.nextLine();
 		String titleToSearch = text.trim().replaceAll(" ", "_");
 
+		List<WikipediaContent> wikiContentList = new ArrayList<WikipediaContent>();
+
 		HttpClient client = HttpClient.newHttpClient();
 		HttpRequest request = HttpRequest.newBuilder()
-				.uri(URI.create(wikipediaURL + "&list=search&utf8=1&srsearch=" + titleToSearch + "&srlimit=max"))
+				.uri(URI.create(
+						wikipediaURL + "&wikiContentList=search&utf8=1&srsearch=" + titleToSearch + "&srlimit=max"))
 				.headers("Content-Type", "application/json;charset=UTF-8").GET().build();
 
 		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -44,7 +51,6 @@ public class App {
 		Iterator<?> itr = search.iterator();
 
 		ElasticSearch es = new ElasticSearch();
-		es.makeConnection();
 
 		while (itr.hasNext()) {
 
@@ -107,15 +113,17 @@ public class App {
 					w.setTitle(title);
 					w.setContent(content);
 
-					es.insertWikiContent(w);
+					wikiContentList.add(w);
 
-					System.out.println("Copying the contents of " + pageId + " - " + title);
+					System.out.println("Fetching the contents of " + title + " from wikipedia ");
 				}
 
 			}
 
 		}
-		es.closeConnection();
+
+		es.bulkInsert(wikiContentList);
+
 		System.out.println("All the contents are moved to Elastic Search");
 
 	}
