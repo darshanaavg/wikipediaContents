@@ -28,13 +28,15 @@ public class App {
 
 		String text = inputObj.nextLine();
 
-		ElasticSearch es = new ElasticSearch();
+//		ElasticSearch es = new ElasticSearch();
 
 		WikipediaContent w = new WikipediaContent();
 
-		List<WikipediaContent> wikiContentList = w.getWikipediaContents(text);
+//		List<WikipediaContent> wikiContentList = 
+		
+		w.getWikipediaContents(text);
 
-		es.bulkInsert(wikiContentList);
+//		es.bulkInsert(wikiContentList);
 
 		System.out.println("All the contents are moved to Elastic Search");
 

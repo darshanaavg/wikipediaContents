@@ -7,11 +7,11 @@ import java.util.Map;
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 
@@ -24,6 +24,34 @@ public class ElasticSearch {
 	private static final String SCHEME = "http";
 
 	private static final String INDEX = "wikipedia";
+	
+	BulkProcessor.Listener listener = new BulkProcessor.Listener() {
+        int count = 0;
+
+        @Override
+        public void beforeBulk(long l, BulkRequest bulkRequest) {
+            count = count + bulkRequest.numberOfActions();
+            System.out.println("Uploaded " + count + " so far");
+        }
+
+        @Override
+        public void afterBulk(long l, BulkRequest bulkRequest, BulkResponse bulkResponse) {
+            if (bulkResponse.hasFailures()) {
+                for (BulkItemResponse bulkItemResponse : bulkResponse) {
+                    if (bulkItemResponse.isFailed()) {
+                        System.out.println(bulkItemResponse.getOpType());
+                        BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+                        System.out.println("Error " + failure.toString());
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void afterBulk(long l, BulkRequest bulkRequest, Throwable throwable) {
+            System.out.println("Big errors " + throwable.toString());
+        }
+    };
 
 	public RestHighLevelClient makeConnection() {
 
@@ -56,7 +84,7 @@ public class ElasticSearch {
 
 		try {
 
-			IndexResponse response = client.index(indexRequest, RequestOptions.DEFAULT);
+			IndexResponse response = client.index(indexRequest, null);
 
 		} catch (ElasticsearchException e) {
 			e.getDetailedMessage();
@@ -87,7 +115,7 @@ public class ElasticSearch {
 		try {
 			makeConnection();
 
-			BulkResponse response = client.bulk(bulkRequest, RequestOptions.DEFAULT);
+			BulkResponse response = client.bulk(bulkRequest, null);
 
 			for (BulkItemResponse bulkItemResponse : response) {
 
