@@ -46,49 +46,49 @@ public class ElasticSearch {
 		System.out.println("Connection disabled");
 
 	}
-	
-	public BulkProcessor.Listener getBulkListener(){
-		
+
+	public BulkProcessor.Listener getBulkListener() {
+
 		BulkProcessor.Listener listener = new BulkProcessor.Listener() {
-	        int count = 0;
+			int count = 0;
 
-	        @Override
-	        public void beforeBulk(long l, BulkRequest bulkRequest) {
-	            count = count + bulkRequest.numberOfActions();
-	            System.out.println("Uploaded " + count + " so far");
-	        }
+			@Override
+			public void beforeBulk(long l, BulkRequest bulkRequest) {
+				count = count + bulkRequest.numberOfActions();
+				System.out.println("Uploaded " + count + " so far");
+			}
 
-	        @Override
-	        public void afterBulk(long l, BulkRequest bulkRequest, BulkResponse bulkResponse) {
-	            if (bulkResponse.hasFailures()) {
-	                for (BulkItemResponse bulkItemResponse : bulkResponse) {
-	                    if (bulkItemResponse.isFailed()) {
-	                        System.out.println(bulkItemResponse.getOpType());
-	                        BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
-	                        System.out.println("Error " + failure.toString());
-	                    }
-	                }
-	            }
-	        }
+			@Override
+			public void afterBulk(long l, BulkRequest bulkRequest, BulkResponse bulkResponse) {
+				if (bulkResponse.hasFailures()) {
+					for (BulkItemResponse bulkItemResponse : bulkResponse) {
+						if (bulkItemResponse.isFailed()) {
+							System.out.println(bulkItemResponse.getOpType());
+							BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+							System.out.println("Error " + failure.toString());
+						}
+					}
+				}
+			}
 
-	        @Override
-	        public void afterBulk(long l, BulkRequest bulkRequest, Throwable throwable) {
-	            System.out.println("Big errors " + throwable.toString());
-	        }
-	    };
-		
+			@Override
+			public void afterBulk(long l, BulkRequest bulkRequest, Throwable throwable) {
+				System.out.println("Big errors " + throwable.toString());
+			}
+		};
+
 		return listener;
-		
+
 	}
-	
+
 	public ThreadPool getThreadPool() {
-		
+
 		return new ThreadPool(Settings.builder().put().build());
-		
+
 	}
-	
+
 	public IndexRequest getIndexRequest(WikipediaContent content) {
-		
+
 		Map<String, Object> dataMap = new HashMap<String, Object>();
 
 		dataMap.put("key", content.getKey());
@@ -96,9 +96,8 @@ public class ElasticSearch {
 		dataMap.put("content", content.getContent());
 
 		return new IndexRequest(indexName, docType, content.getPageId() + "").source(dataMap);
-		
+
 	}
-	
 
 	public WikipediaContent insertWikiContent(WikipediaContent content) {
 

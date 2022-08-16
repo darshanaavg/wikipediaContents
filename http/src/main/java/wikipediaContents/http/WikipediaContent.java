@@ -62,20 +62,15 @@ public class WikipediaContent {
 	}
 
 	public void getWikipediaContents(String text) throws IOException, InterruptedException, ParseException {
-		
-		
+
 		ElasticSearch es = new ElasticSearch();
 
 		RestHighLevelClient client = es.makeConnection();
 
 		BulkProcessor bulkProcessor = new BulkProcessor.Builder(client::bulkAsync, es.getBulkListener(),
-				es.getThreadPool())
-				.setBulkActions(1000) 
-		        .setBulkSize(new ByteSizeValue(5, ByteSizeUnit.MB))
-		        .setConcurrentRequests(1) 
-		        .setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), 3)) 
-		        .build();
-
+				es.getThreadPool()).setBulkActions(1000).setBulkSize(new ByteSizeValue(5, ByteSizeUnit.MB))
+				.setConcurrentRequests(1)
+				.setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), 3)).build();
 
 		String titleToSearch = text.trim().replaceAll(" ", "_");
 

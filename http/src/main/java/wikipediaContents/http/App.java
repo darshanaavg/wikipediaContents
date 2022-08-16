@@ -29,7 +29,7 @@ public class App {
 		String text = inputObj.nextLine();
 
 		WikipediaContent w = new WikipediaContent();
-		
+
 		w.getWikipediaContents(text);
 
 		System.out.println("All the contents are moved to Elastic Search");
