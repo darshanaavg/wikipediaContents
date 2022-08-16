@@ -69,7 +69,7 @@ public class WikipediaContent {
 
 		BulkProcessor bulkProcessor = new BulkProcessor.Builder(client::bulkAsync, es.getBulkListener(), es.getThreadPool())
 				.setBulkActions(1000)
-//				.setBulkSize(new ByteSizeValue(5, ByteSizeUnit.MB))
+				.setBulkSize(new ByteSizeValue(5, ByteSizeUnit.MB))
 				.setConcurrentRequests(0)
 				.setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), 3))
 				.build();
