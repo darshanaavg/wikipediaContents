@@ -67,10 +67,12 @@ public class WikipediaContent {
 
 		RestHighLevelClient client = es.makeConnection();
 
-		BulkProcessor bulkProcessor = new BulkProcessor.Builder(client::bulkAsync, es.getBulkListener(),
-				es.getThreadPool()).setBulkActions(1000).setBulkSize(new ByteSizeValue(5, ByteSizeUnit.MB))
+		BulkProcessor bulkProcessor = new BulkProcessor.Builder(client::bulkAsync, es.getBulkListener(), es.getThreadPool())
+				.setBulkActions(1000)
+				.setBulkSize(new ByteSizeValue(5, ByteSizeUnit.MB))
 				.setConcurrentRequests(1)
-				.setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), 3)).build();
+				.setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), 3))
+				.build();
 
 		String titleToSearch = text.trim().replaceAll(" ", "_");
 
@@ -78,7 +80,9 @@ public class WikipediaContent {
 
 		HttpRequest request = HttpRequest.newBuilder()
 				.uri(URI.create(wikipediaURL + "&list=search&utf8=1&srsearch=" + titleToSearch + "&srlimit=max"))
-				.headers("Content-Type", "application/json;charset=UTF-8").GET().build();
+				.headers("Content-Type", "application/json;charset=UTF-8")
+				.GET()
+				.build();
 
 		HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 		String json = response.body().toString();
