@@ -69,8 +69,8 @@ public class WikipediaContent {
 
 		BulkProcessor bulkProcessor = new BulkProcessor.Builder(client::bulkAsync, es.getBulkListener(), es.getThreadPool())
 				.setBulkActions(1000)
-				.setBulkSize(new ByteSizeValue(5, ByteSizeUnit.MB))
-				.setConcurrentRequests(1)
+//				.setBulkSize(new ByteSizeValue(5, ByteSizeUnit.MB))
+				.setConcurrentRequests(0)
 				.setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), 3))
 				.build();
 
@@ -176,7 +176,7 @@ public class WikipediaContent {
 		if (!terminated) {
 			System.out.println("Some requests have not been processed");
 		} else {
-			System.out.println("Sucess");
+			System.out.println("Success");
 		}
 	}
 }
