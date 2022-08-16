@@ -5,25 +5,20 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.http.HttpHost;
-import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.unit.TimeValue;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.threadpool.ThreadPool;
 
 public class WikipediaContent {
 
@@ -34,52 +29,6 @@ public class WikipediaContent {
 
 	public static final String wikipediaURL = "https://en.wikipedia.org/w/api.php?action=query&format=json";
 
-	private static final String HOST = "localhost";
-	private static final int PORT_ONE = 9200;
-	private static final String SCHEME = "http";
-	private static final String INDEX = "wikipedia";
-
-	private static RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(new HttpHost(HOST, PORT_ONE, SCHEME)));
-	
-	BulkProcessor.Listener listener = new BulkProcessor.Listener() { 
-		int count = 0;
-
-		@Override
-		public void beforeBulk(long executionId, BulkRequest request) {
-
-			count = count + request.numberOfActions();
-			System.out.println("Uploaded " + count + " so far");
-
-		}
-
-		@Override
-		public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
-
-			if (response.hasFailures()) {
-				for (BulkItemResponse bulkItemResponse : response) {
-					if (bulkItemResponse.isFailed()) {
-						System.out.println(bulkItemResponse.getOpType());
-						BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
-						System.out.println("Error " + failure.toString());
-					}
-				}
-			}
-
-		}
-
-		@Override
-		public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-
-			System.out.println("Errors - " + failure.toString());
-
-		}
-	};
-
-	ThreadPool threadPool = new ThreadPool(Settings.builder().put("elasticsearch", "high-level-client").build());
-	
-	BulkProcessor bulkProcessor =  new BulkProcessor.Builder(client::bulkAsync, listener, threadPool)
-            .build();
-	
 	public String getKey() {
 		return key;
 	}
@@ -112,27 +61,31 @@ public class WikipediaContent {
 		this.pageId = pageId;
 	}
 
-	public void getWikipediaContents(String text)
-			throws IOException, InterruptedException, ParseException {
+	public void getWikipediaContents(String text) throws IOException, InterruptedException, ParseException {
+		
+		
+		ElasticSearch es = new ElasticSearch();
+
+		RestHighLevelClient client = es.makeConnection();
+
+		BulkProcessor bulkProcessor = new BulkProcessor.Builder(client::bulkAsync, es.getBulkListener(),
+				es.getThreadPool())
+				.setBulkActions(1000) 
+		        .setBulkSize(new ByteSizeValue(5, ByteSizeUnit.MB))
+		        .setConcurrentRequests(1) 
+		        .setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), 3)) 
+		        .build();
+
 
 		String titleToSearch = text.trim().replaceAll(" ", "_");
 
-//		List<WikipediaContent> wikiContentList = new ArrayList<WikipediaContent>();
-
-		HttpClient client = HttpClient.newHttpClient();
+		HttpClient httpClient = HttpClient.newHttpClient();
 
 		HttpRequest request = HttpRequest.newBuilder()
 				.uri(URI.create(wikipediaURL + "&list=search&utf8=1&srsearch=" + titleToSearch + "&srlimit=max"))
 				.headers("Content-Type", "application/json;charset=UTF-8").GET().build();
-		
-		
-		
-		
-		ElasticSearch es = new ElasticSearch();		
-		
-		
 
-		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+		HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 		String json = response.body().toString();
 
 		JSONParser jsonParser = new JSONParser();
@@ -160,7 +113,7 @@ public class WikipediaContent {
 			request = HttpRequest.newBuilder().uri(URI.create(url))
 					.headers("Content-Type", "application/json;charset=UTF-8").GET().build();
 
-			response = client.send(request, HttpResponse.BodyHandlers.ofString());
+			response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
 			String contentResponse = response.body();
 
@@ -200,24 +153,16 @@ public class WikipediaContent {
 
 					String content = (String) mainJson.get("content");
 
-//					WikipediaContent w = new WikipediaContent();
+					WikipediaContent wikiContent = new WikipediaContent();
 
-//					w.setPageId(pageId);
-//					w.setKey(text);
-//					w.setTitle(title);
-//					w.setContent(content);
+					wikiContent.setPageId(pageId);
+					wikiContent.setTitle(title);
+					wikiContent.setKey(text);
+					wikiContent.setContent(content);
 
-					Map<String, Object> dataMap = new HashMap<String, Object>();
+					IndexRequest indexRequest = es.getIndexRequest(wikiContent);
 
-					dataMap.put("key", text);
-					dataMap.put("title",title);
-					dataMap.put("content", content);
-
-					IndexRequest indexRequest = new IndexRequest(INDEX).source(dataMap);
-					
-					 bulkProcessor.add(indexRequest);
-					
-//					wikiContentList.add(w);
+					bulkProcessor.add(indexRequest);
 
 					System.out.println("Fetching the contents of " + title + " from wikipedia ");
 				}
@@ -225,18 +170,14 @@ public class WikipediaContent {
 			}
 
 		}
-//		client.admin().indices().prepareRefresh().get();
-		 System.out.println("Waiting to finish");
 
-         boolean terminated = (bulkProcessor).awaitClose(30L, TimeUnit.SECONDS);
-         if(!terminated) {
-             System.out.println("Some requests have not been processed");
-         } else {
-        	 System.out.println("Sucess");
-         }
+		System.out.println("Waiting to finish");
 
-//        client.close();
-
-//		return wikiContentList;
+		boolean terminated = bulkProcessor.awaitClose(30L, TimeUnit.SECONDS);
+		if (!terminated) {
+			System.out.println("Some requests have not been processed");
+		} else {
+			System.out.println("Sucess");
+		}
 	}
 }
